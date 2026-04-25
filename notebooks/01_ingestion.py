@@ -23,12 +23,11 @@ OVERWRITE = True  # Set to False to append instead of overwrite
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Install dependencies (if needed)
+# MAGIC ## Install dependencies
 
 # COMMAND ----------
 
-# pandas and openpyxl should be pre-installed, but just in case
-# %pip install openpyxl pandas
+%pip install openpyxl --quiet
 
 # COMMAND ----------
 
