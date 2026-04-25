@@ -68,3 +68,9 @@ logs/
 tmp/
 temp/
 *.tmp
+
+# Data files (too large for git)
+*.xlsx
+*.csv
+*.parquet
+data/
