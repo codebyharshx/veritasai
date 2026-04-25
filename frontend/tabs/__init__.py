@@ -1,0 +1,1 @@
+"""Frontend tab components."""
