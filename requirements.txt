@@ -1,40 +1,24 @@
-# Veritas - Truth Layer for Indian Healthcare
-# Core dependencies for local development and Databricks
+# Veritas API - Minimal dependencies for Lambda deployment
+# Use this for serverless deployment (Lambda, etc.)
 
-# LLM & AI
-openai>=1.0.0
-instructor>=1.0.0
-langchain>=0.1.0
-langgraph>=0.0.20
-
-# Databricks SDK
-databricks-sdk>=0.20.0
-
-# MLflow for tracing
-mlflow>=2.10.0
-
-# Data processing
-pandas>=2.0.0
-openpyxl>=3.1.0  # Excel file reading
-pydantic>=2.0.0
-
-# Geospatial
-h3>=3.7.0
-folium>=0.15.0
-geopy>=2.4.0
-
-# API
+# API framework
 fastapi>=0.109.0
 uvicorn>=0.27.0
+mangum>=0.17.0  # Lambda adapter for FastAPI
 
-# Frontend
-streamlit>=1.30.0
-streamlit-folium>=0.17.0
-plotly>=5.18.0
+# Data models
+pydantic>=2.0.0
+
+# HTTP client (for LLM calls if needed)
+httpx>=0.26.0
 
 # Utilities
 python-dotenv>=1.0.0
-httpx>=0.26.0
 
-# Note: pyspark is provided by Databricks runtime, not needed locally
-# unless running Spark locally for testing
+# Note: This is for LOCAL MOCK MODE only
+# - No pyspark (provided by Databricks, not needed for mock)
+# - No streamlit (frontend runs separately)
+# - No mlflow (tracing only needed on Databricks)
+# - No langchain/langgraph (heavy, not needed for mock API)
+# - No pandas (mock data is in-memory dicts)
+# - No folium/h3 (frontend visualization only)
