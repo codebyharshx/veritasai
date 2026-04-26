@@ -134,6 +134,7 @@ def run_vector_indexing(
     client = get_llm_client()
 
     texts = [p["profile_text"] for p in profiles]
+    embeddings = []  # Initialize to empty list
 
     try:
         embeddings = create_embeddings_batch(client, texts, batch_size)
@@ -149,6 +150,7 @@ def run_vector_indexing(
         print("[Stage 5] Saving profiles without embeddings (can be added later)")
         for p in profiles:
             p["embedding"] = None
+        embeddings = []  # Reset to empty on failure
 
     # Write to Delta table
     import pandas as pd
@@ -173,8 +175,8 @@ def run_vector_indexing(
     stats = {
         "total_facilities": total,
         "profiles_created": len(profiles),
-        "embeddings_created": len(embeddings) if 'embeddings' in dir() else 0,
-        "embedding_dimensions": len(embeddings[0]) if embeddings and embeddings[0] else 0,
+        "embeddings_created": len(embeddings),
+        "embedding_dimensions": len(embeddings[0]) if embeddings else 0,
     }
 
     return stats
