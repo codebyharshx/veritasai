@@ -176,6 +176,7 @@ st.markdown("""
 from tabs.map_tab import render_map_tab
 from tabs.inspector_tab import render_inspector_tab
 from tabs.query_tab import render_query_tab
+from tabs.approach_tab import render_approach_tab
 
 # Header with better spacing
 col1, col2 = st.columns([3, 1])
@@ -190,7 +191,7 @@ with col2:
 st.markdown("")
 
 # Main tabs
-tab1, tab2, tab3 = st.tabs(["🗺️ Geographic Explorer", "🔍 Facility Inspector", "💬 Ask"])
+tab1, tab2, tab3, tab4 = st.tabs(["🗺️ Geographic Explorer", "🔍 Facility Inspector", "💬 Ask", "📋 Our Approach"])
 
 with tab1:
     render_map_tab()
@@ -200,6 +201,9 @@ with tab2:
 
 with tab3:
     render_query_tab()
+
+with tab4:
+    render_approach_tab()
 
 # Footer
 st.markdown("")
