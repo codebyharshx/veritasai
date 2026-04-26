@@ -5,11 +5,8 @@ from streamlit_folium import st_folium
 import requests
 from typing import Optional
 
-# API base URL - configure based on environment
-try:
-    API_BASE = st.secrets["API_BASE"]
-except (KeyError, FileNotFoundError):
-    API_BASE = "http://localhost:8000"
+import os
+API_BASE = os.environ.get("API_URL", "http://localhost:8000")
 
 
 def get_facilities_for_map():

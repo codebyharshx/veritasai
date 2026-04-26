@@ -3,10 +3,8 @@ import streamlit as st
 import requests
 from typing import Optional
 
-try:
-    API_BASE = st.secrets["API_BASE"]
-except (KeyError, FileNotFoundError):
-    API_BASE = "http://localhost:8000"
+import os
+API_BASE = os.environ.get("API_URL", "http://localhost:8000")
 
 
 def query_facilities(query: str, max_results: int = 5) -> Optional[dict]:
