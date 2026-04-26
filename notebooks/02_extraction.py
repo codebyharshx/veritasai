@@ -32,7 +32,7 @@ SAMPLE_SIZE = 5  # Set to None for full dataset, or a number for testing
 SOURCE_TABLE = "workspace.veritas_dev.facilities_raw"
 TARGET_TABLE = "workspace.veritas_dev.facilities_structured"
 CITATIONS_TABLE = "workspace.veritas_dev.citations"
-MAX_CONCURRENT = 10  # Concurrent LLM calls - reduce if rate limited
+MAX_CONCURRENT = 3  # Very low for Free Edition rate limits (has retry logic)
 OVERWRITE = True
 
 # COMMAND ----------

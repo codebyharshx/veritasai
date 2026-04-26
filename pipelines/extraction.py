@@ -6,12 +6,17 @@ using Llama 3.3 70B via Databricks AI Gateway.
 import json
 import re
 import uuid
-import asyncio
+import time
 from datetime import datetime
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from pydantic import BaseModel, Field
+
+# Rate limiting settings
+MAX_RETRIES = 3
+RETRY_DELAY_BASE = 2.0  # Exponential backoff base in seconds
+CALL_DELAY = 0.5  # Delay between calls to avoid rate limiting
 
 # These will be imported from the api module
 import sys
@@ -106,63 +111,102 @@ def extract_single_facility(
     if not unstructured_notes or not unstructured_notes.strip():
         return None, [], "Empty unstructured_notes"
 
+    # Truncate very long notes to avoid token limits
+    if len(unstructured_notes) > 4000:
+        unstructured_notes = unstructured_notes[:4000] + "..."
+
     prompt = EXTRACTION_PROMPT.format(
         facility_name=facility_name,
         facility_type=facility_type,
         unstructured_notes=unstructured_notes,
     )
 
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_CHAT,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.1,  # Low temperature for consistent extraction
-            max_tokens=2000,
-        )
-
-        raw_output = response.choices[0].message.content
-        cleaned = clean_json_response(raw_output)
-
+    # Retry loop with exponential backoff for rate limits
+    last_error = None
+    for attempt in range(MAX_RETRIES):
         try:
-            data = json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            return None, [], f"JSON parse error: {e}. Raw: {raw_output[:200]}"
+            # Add delay to avoid rate limiting
+            if attempt > 0:
+                delay = RETRY_DELAY_BASE * (2 ** attempt)
+                time.sleep(delay)
+            else:
+                time.sleep(CALL_DELAY)
 
-        # Parse into Pydantic model
-        extraction = ExtractionOutput(
-            verified_capabilities=[
-                VerifiedCapability(**cap) for cap in data.get("verified_capabilities", [])
-            ],
-            staff=[
-                StaffMember(**s) for s in data.get("staff", [])
-            ],
-            equipment=[
-                Equipment(**eq) for eq in data.get("equipment", [])
-            ],
-            operational_hours=data.get("operational_hours"),
-            last_update_mentioned=data.get("last_update_mentioned"),
-        )
-
-        # Generate citations for each capability
-        citations = []
-        for cap in extraction.verified_capabilities:
-            citation = Citation(
-                citation_id=str(uuid.uuid4()),
-                facility_id=facility_id,
-                claim_type="capability",
-                claim_text=cap.capability,
-                source_sentence=cap.evidence_sentence,
-                source_offset_start=cap.evidence_offset,
-                source_offset_end=cap.evidence_offset + len(cap.evidence_sentence),
+            response = client.chat.completions.create(
+                model=MODEL_CHAT,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=2000,
             )
-            citations.append(citation)
 
-        return extraction, citations, None
+            raw_output = response.choices[0].message.content
+            cleaned = clean_json_response(raw_output)
 
-    except Exception as e:
-        return None, [], f"API error: {str(e)}"
+            try:
+                data = json.loads(cleaned)
+            except json.JSONDecodeError as e:
+                return None, [], f"JSON parse error: {e}. Raw: {raw_output[:200]}"
+
+            # Parse into Pydantic model with defensive handling
+            capabilities = []
+            for cap in data.get("verified_capabilities", []):
+                try:
+                    capabilities.append(VerifiedCapability(**cap))
+                except Exception:
+                    pass  # Skip malformed capabilities
+
+            staff = []
+            for s in data.get("staff", []):
+                try:
+                    # Filter out None roles
+                    if s.get("role"):
+                        staff.append(StaffMember(**s))
+                except Exception:
+                    pass
+
+            equipment = []
+            for eq in data.get("equipment", []):
+                try:
+                    if eq.get("item"):
+                        equipment.append(Equipment(**eq))
+                except Exception:
+                    pass
+
+            extraction = ExtractionOutput(
+                verified_capabilities=capabilities,
+                staff=staff,
+                equipment=equipment,
+                operational_hours=data.get("operational_hours"),
+                last_update_mentioned=data.get("last_update_mentioned"),
+            )
+
+            # Generate citations for each capability
+            citations = []
+            for cap in extraction.verified_capabilities:
+                citation = Citation(
+                    citation_id=str(uuid.uuid4()),
+                    facility_id=facility_id,
+                    claim_type="capability",
+                    claim_text=cap.capability,
+                    source_sentence=cap.evidence_sentence,
+                    source_offset_start=cap.evidence_offset,
+                    source_offset_end=cap.evidence_offset + len(cap.evidence_sentence),
+                )
+                citations.append(citation)
+
+            return extraction, citations, None
+
+        except Exception as e:
+            last_error = str(e)
+            # Check if it's a rate limit error
+            if "429" in last_error or "LIMIT" in last_error.upper():
+                continue  # Retry
+            else:
+                return None, [], f"API error: {last_error}"
+
+    return None, [], f"API error after {MAX_RETRIES} retries: {last_error}"
 
 
 def run_extraction(
@@ -171,7 +215,7 @@ def run_extraction(
     target_table: str = "workspace.veritas_dev.facilities_structured",
     citations_table: str = "workspace.veritas_dev.citations",
     sample_size: Optional[int] = None,
-    max_concurrent: int = 10,  # Conservative for Free Edition rate limits
+    max_concurrent: int = 3,  # Very conservative for Free Edition rate limits
     overwrite: bool = True,
 ) -> dict:
     """

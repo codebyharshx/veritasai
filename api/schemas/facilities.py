@@ -37,7 +37,7 @@ class VerifiedCapability(BaseModel):
 
 class StaffMember(BaseModel):
     """A staff member extracted from facility notes."""
-    role: str = Field(..., description="Job title or role")
+    role: Optional[str] = Field(None, description="Job title or role")
     specialty: Optional[str] = Field(None, description="Medical specialty if applicable")
     availability_hours: Optional[str] = Field(None, description="Working hours if mentioned")
 
